@@ -9,14 +9,18 @@ export class World {
   constructor(seed: number) {
     this.random = new SeededRandom(seed);
 
+    // Initialize state first
     this.state = {
       seed,
       width: GAME_CONFIG.WORLD.WIDTH,
       height: GAME_CONFIG.WORLD.HEIGHT,
       campfirePosition: null,
-      childrenPositions: this.generateChildrenPositions(),
+      childrenPositions: [],
       childrenRescued: [false, false, false, false],
     };
+
+    // Now generate children positions after state is initialized
+    this.state.childrenPositions = this.generateChildrenPositions();
   }
 
   private generateChildrenPositions(): Vector2D[] {
