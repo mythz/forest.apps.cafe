@@ -15,6 +15,15 @@ export class Player extends Entity {
   private inputManager: InputManager;
   public isMoving: boolean = false;
 
+  // Dash ability
+  private dashCooldown: number = 3; // seconds
+  private lastDashTime: number = -10;
+  private dashSpeed: number = 500;
+  private dashDuration: number = 0.2;
+  private isDashing: boolean = false;
+  private dashTimer: number = 0;
+  private dashDirection: { x: number; y: number } = { x: 0, y: 0 };
+
   constructor(state: PlayerState, inputManager: InputManager) {
     const entityState: EntityState = {
       id: 'player',
@@ -39,11 +48,62 @@ export class Player extends Entity {
   }
 
   update(deltaTime: number, _gameState: GameState): void {
+    this.handleDash(deltaTime);
     this.handleMovement(deltaTime);
     this.updateFlashlight(deltaTime);
   }
 
+  private handleDash(deltaTime: number): void {
+    const currentTime = Date.now() / 1000;
+
+    // Handle dash input
+    if (this.inputManager.isKeyPressed(' ') && !this.isDashing) {
+      if (currentTime - this.lastDashTime >= this.dashCooldown) {
+        this.isDashing = true;
+        this.dashTimer = 0;
+        this.lastDashTime = currentTime;
+
+        // Get current movement direction
+        const vel = { x: 0, y: 0 };
+        if (this.inputManager.isKeyDown(CONTROLS.MOVE_UP)) vel.y -= 1;
+        if (this.inputManager.isKeyDown(CONTROLS.MOVE_DOWN)) vel.y += 1;
+        if (this.inputManager.isKeyDown(CONTROLS.MOVE_LEFT)) vel.x -= 1;
+        if (this.inputManager.isKeyDown(CONTROLS.MOVE_RIGHT)) vel.x += 1;
+
+        const length = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
+        if (length > 0) {
+          this.dashDirection = { x: vel.x / length, y: vel.y / length };
+        } else {
+          // Dash in facing direction if no input
+          this.dashDirection = {
+            x: Math.cos(this.direction),
+            y: Math.sin(this.direction),
+          };
+        }
+      }
+    }
+
+    // Update dash
+    if (this.isDashing) {
+      this.dashTimer += deltaTime;
+      if (this.dashTimer >= this.dashDuration) {
+        this.isDashing = false;
+        this.dashTimer = 0;
+      }
+    }
+  }
+
   private handleMovement(deltaTime: number): void {
+    // If dashing, use dash velocity
+    if (this.isDashing) {
+      this.velocity.x = this.dashDirection.x * this.dashSpeed;
+      this.velocity.y = this.dashDirection.y * this.dashSpeed;
+      this.position.x += this.velocity.x * deltaTime;
+      this.position.y += this.velocity.y * deltaTime;
+      this.isMoving = true;
+      return;
+    }
+
     const vel = { x: 0, y: 0 };
 
     if (this.inputManager.isKeyDown(CONTROLS.MOVE_UP)) vel.y -= 1;
@@ -129,6 +189,16 @@ export class Player extends Entity {
     };
   }
 
+  public getDashCooldownProgress(): number {
+    const currentTime = Date.now() / 1000;
+    const timeSinceDash = currentTime - this.lastDashTime;
+    return Math.min(1, timeSinceDash / this.dashCooldown);
+  }
+
+  public isDashingNow(): boolean {
+    return this.isDashing;
+  }
+
   public isFlashlightActive(): boolean {
     return this.flashlightActive;
   }
@@ -136,8 +206,18 @@ export class Player extends Entity {
   render(ctx: CanvasRenderingContext2D, camera: Camera): void {
     const screenPos = camera.worldToScreen(this.position);
 
+    // Draw dash trail if dashing
+    if (this.isDashing) {
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = '#00FFFF';
+      ctx.beginPath();
+      ctx.arc(screenPos.x, screenPos.y, this.radius * 1.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
     // Draw player circle
-    ctx.fillStyle = '#4CAF50';
+    ctx.fillStyle = this.isDashing ? '#00FFFF' : '#4CAF50';
     ctx.beginPath();
     ctx.arc(screenPos.x, screenPos.y, this.radius, 0, Math.PI * 2);
     ctx.fill();

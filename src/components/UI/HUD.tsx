@@ -6,11 +6,13 @@ interface HUDProps {
   dayNightCycle: DayNightState;
   inventory: InventoryState;
   childrenRescued: number;
+  dashCooldown: number;
 }
 
-export const HUD: React.FC<HUDProps> = ({ player, dayNightCycle, inventory, childrenRescued }) => {
+export const HUD: React.FC<HUDProps> = ({ player, dayNightCycle, inventory, childrenRescued, dashCooldown }) => {
   const healthPercent = (player.health / player.maxHealth) * 100;
   const fuelPercent = (player.flashlightFuel / player.maxFlashlightFuel) * 100;
+  const dashPercent = dashCooldown * 100;
 
   return (
     <div className="hud">
@@ -32,6 +34,14 @@ export const HUD: React.FC<HUDProps> = ({ player, dayNightCycle, inventory, chil
             <div className="stat-value">{Math.floor(player.flashlightFuel)} / {player.maxFlashlightFuel}</div>
           </div>
         )}
+
+        <div className="stat-panel">
+          <div className="stat-label">Dash [Space]</div>
+          <div className="stat-bar">
+            <div className={`stat-bar-fill dash ${dashPercent >= 100 ? 'ready' : ''}`} style={{ width: `${dashPercent}%` }} />
+          </div>
+          <div className="stat-value">{dashPercent >= 100 ? 'READY' : `${Math.floor(dashPercent)}%`}</div>
+        </div>
       </div>
 
       <div className="hud-top-right">

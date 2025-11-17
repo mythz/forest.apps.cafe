@@ -570,3 +570,244 @@
 .restart-button:hover {
   background: #66BB6A;
 }
+
+/* Dash Cooldown Indicator */
+.stat-bar-fill.dash {
+  background: linear-gradient(90deg, #888 0%, #aaa 100%);
+  transition: width 0.3s ease, background 0.3s ease;
+}
+
+.stat-bar-fill.dash.ready {
+  background: linear-gradient(90deg, #00FFFF 0%, #00AAFF 100%);
+  animation: pulse-dash 1s infinite;
+}
+
+@keyframes pulse-dash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Minimap */
+.minimap {
+  position: absolute;
+  bottom: 120px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid #4CAF50;
+  border-radius: 8px;
+  padding: 10px;
+  pointer-events: none;
+}
+
+.minimap-container {
+  position: relative;
+  background: rgba(20, 40, 20, 0.5);
+  border: 1px solid #2a4a2a;
+}
+
+.minimap-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 1px solid #4CAF50;
+}
+
+.minimap-player {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #4CAF50;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 4;
+  box-shadow: 0 0 8px rgba(76, 175, 80, 0.8);
+}
+
+.minimap-campfire {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #FF6600;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  box-shadow: 0 0 6px rgba(255, 102, 0, 0.8);
+}
+
+.minimap-child {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #FFD700;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  animation: pulse-child 2s infinite;
+}
+
+@keyframes pulse-child {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(255, 215, 0, 0.8);
+  }
+  50% {
+    box-shadow: 0 0 10px rgba(255, 215, 0, 1);
+  }
+}
+
+.minimap-label {
+  text-align: center;
+  color: #4CAF50;
+  font-size: 11px;
+  margin-top: 5px;
+  font-weight: bold;
+}
+
+/* Tutorial Hint */
+.tutorial-hint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.95) 0%, rgba(56, 142, 60, 0.95) 100%);
+  border: 3px solid #FFD700;
+  border-radius: 12px;
+  padding: 20px 30px;
+  max-width: 400px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  animation: hint-appear 0.3s ease-out;
+  pointer-events: auto;
+  z-index: 1000;
+}
+
+@keyframes hint-appear {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -60%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+.hint-icon {
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.hint-text {
+  flex: 1;
+  color: #fff;
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.hint-dismiss {
+  background: rgba(0, 0, 0, 0.3);
+  border: none;
+  color: #fff;
+  font-size: 24px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.hint-dismiss:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+/* Achievement Toast */
+.achievement-toast {
+  position: absolute;
+  top: 100px;
+  right: -400px;
+  width: 350px;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.95) 0%, rgba(255, 165, 0, 0.95) 100%);
+  border: 3px solid #FFD700;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  pointer-events: auto;
+  transition: right 0.5s ease-out, opacity 0.3s ease;
+  z-index: 1000;
+}
+
+.achievement-toast.visible {
+  right: 20px;
+}
+
+.achievement-header {
+  font-size: 18px;
+  font-weight: bold;
+  color: #000;
+  margin-bottom: 15px;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.achievement-content {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 15px;
+  border-radius: 8px;
+}
+
+.achievement-icon {
+  font-size: 48px;
+  flex-shrink: 0;
+}
+
+.achievement-info {
+  flex: 1;
+}
+
+.achievement-name {
+  font-size: 20px;
+  font-weight: bold;
+  color: #000;
+  margin-bottom: 5px;
+}
+
+.achievement-description {
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.8);
+  line-height: 1.4;
+}
+
+/* Floating Damage Numbers */
+.floating-text {
+  position: absolute;
+  font-weight: bold;
+  pointer-events: none;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  animation: float-up 1.5s ease-out forwards;
+  z-index: 100;
+}
+
+@keyframes float-up {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-60px) scale(1.2);
+  }
+}

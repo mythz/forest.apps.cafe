@@ -12,6 +12,10 @@ import { CraftingMenu } from './UI/CraftingMenu';
 import { PauseMenu } from './UI/PauseMenu';
 import { GameOver } from './UI/GameOver';
 import { Victory } from './UI/Victory';
+import { Minimap } from './UI/Minimap';
+import { TutorialHint } from './UI/TutorialHint';
+import { AchievementToast } from './UI/AchievementToast';
+import { Achievement } from '../game/systems/AchievementSystem';
 
 const dbManager = new IndexedDBManager();
 
@@ -23,6 +27,8 @@ export const Game: React.FC = () => {
   const [showCrafting, setShowCrafting] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [victory, setVictory] = useState(false);
+  const [lastUnlockedAchievement, setLastUnlockedAchievement] = useState<Achievement | null>(null);
+  const [currentTutorialHint, setCurrentTutorialHint] = useState<string | null>(null);
 
   const gameEngineRef = useRef<GameEngine | null>(null);
   const inputManagerRef = useRef<InputManager | null>(null);
@@ -68,6 +74,20 @@ export const Game: React.FC = () => {
         setGameState(updatedState);
 
         checkGameConditions(updatedState);
+
+        // Check for tutorial hints
+        const hint = gameEngineRef.current.getTutorialHint();
+        if (hint && hint !== currentTutorialHint) {
+          setCurrentTutorialHint(hint);
+        }
+
+        // Check for new achievements
+        const achievementSystem = gameEngineRef.current.getAchievementSystem();
+        const achievements = achievementSystem.getAchievements();
+        const newlyUnlocked = achievements.find(a => a.unlocked && a.unlockedAt && Date.now() - a.unlockedAt < 100);
+        if (newlyUnlocked && (!lastUnlockedAchievement || newlyUnlocked.id !== lastUnlockedAchievement.id)) {
+          setLastUnlockedAchievement(newlyUnlocked);
+        }
 
         if (canvasRef.current) {
           const ctx = canvasRef.current.getContext('2d')!;
@@ -162,7 +182,31 @@ export const Game: React.FC = () => {
         dayNightCycle={gameState.dayNightCycle}
         inventory={gameState.inventory}
         childrenRescued={gameState.world.childrenRescued.filter((r) => r).length}
+        dashCooldown={gameEngineRef.current?.getPlayer().getDashCooldownProgress() || 0}
       />
+
+      <Minimap
+        world={gameState.world}
+        player={gameState.player}
+        children={gameState.world.childrenPositions}
+      />
+
+      {currentTutorialHint && (
+        <TutorialHint
+          hint={currentTutorialHint}
+          onDismiss={() => {
+            gameEngineRef.current?.dismissTutorialHint();
+            setCurrentTutorialHint(null);
+          }}
+        />
+      )}
+
+      {lastUnlockedAchievement && (
+        <AchievementToast
+          achievement={lastUnlockedAchievement}
+          onDismiss={() => setLastUnlockedAchievement(null)}
+        />
+      )}
 
       {showInventory && (
         <Inventory

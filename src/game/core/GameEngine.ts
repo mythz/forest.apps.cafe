@@ -21,6 +21,9 @@ import { LightingSystem } from '../systems/LightingSystem';
 import { World } from '../world/World';
 import { Renderer } from '../rendering/Renderer';
 import { ParticleSystem } from '../rendering/ParticleSystem';
+import { ScreenEffects, FloatingTextManager } from '../rendering/ScreenEffects';
+import { AchievementSystem } from '../systems/AchievementSystem';
+import { TutorialSystem } from '../systems/TutorialSystem';
 import { GAME_CONFIG, CONTROLS } from '../../constants/gameConfig';
 import { WEAPONS } from '../../constants/items';
 
@@ -39,9 +42,14 @@ export class GameEngine {
   private craftingSystem: CraftingSystem;
   private lightingSystem: LightingSystem;
   private particleSystem: ParticleSystem;
+  private screenEffects: ScreenEffects;
+  private floatingTextManager: FloatingTextManager;
+  private achievementSystem: AchievementSystem;
+  private tutorialSystem: TutorialSystem;
   private renderer: Renderer | null = null;
 
   private creatureSpawnTimer: number = 0;
+  private wasNight: boolean = false;
 
   constructor(initialState: GameState, inputManager: InputManager) {
     this.gameState = initialState;
@@ -72,6 +80,10 @@ export class GameEngine {
     this.craftingSystem = new CraftingSystem();
     this.lightingSystem = new LightingSystem();
     this.particleSystem = new ParticleSystem();
+    this.screenEffects = new ScreenEffects();
+    this.floatingTextManager = new FloatingTextManager();
+    this.achievementSystem = new AchievementSystem();
+    this.tutorialSystem = new TutorialSystem();
 
     // Initialize player
     this.player = new Player(initialState.player, this.inputManager);
@@ -111,11 +123,19 @@ export class GameEngine {
     // Update day/night cycle
     this.dayNightCycle.update(deltaTime);
 
+    // Check for day/night transitions and update difficulty
+    this.handleDayNightTransitions();
+
     // Update resource manager
     this.resourceManager.update(deltaTime);
 
     // Update lighting system
     this.lightingSystem.update(this.getState());
+
+    // Update screen effects and UI systems
+    this.screenEffects.update(deltaTime);
+    this.floatingTextManager.update(deltaTime);
+    this.tutorialSystem.update(deltaTime);
 
     // Update player
     this.player.update(deltaTime, this.gameState);
@@ -150,11 +170,46 @@ export class GameEngine {
     // Update particle system
     this.particleSystem.update(deltaTime);
 
+    // Update achievements
+    this.updateAchievements();
+
     // Update game state
     this.updateGameState();
 
     // Remove dead entities
     this.removeDeadEntities();
+  }
+
+  private handleDayNightTransitions(): void {
+    const isNight = this.dayNightCycle.isNight();
+
+    if (isNight && !this.wasNight) {
+      // Night just started
+      this.tutorialSystem.triggerHint('night_coming');
+    }
+
+    this.wasNight = isNight;
+  }
+
+  private updateAchievements(): void {
+    // Update achievement progress
+    this.achievementSystem.checkProgress('hunter', this.gameState.statistics.creaturesKilled);
+    this.achievementSystem.checkProgress('monster_slayer', this.gameState.statistics.creaturesKilled);
+    this.achievementSystem.checkProgress('gatherer', this.gameState.statistics.resourcesGathered);
+    this.achievementSystem.checkProgress('craftsman', this.gameState.statistics.itemsCrafted);
+    this.achievementSystem.checkProgress('survivor_week', this.gameState.dayNightCycle.totalDaysPassed);
+    this.achievementSystem.checkProgress('survivor_month', this.gameState.dayNightCycle.totalDaysPassed);
+
+    const childrenRescued = this.gameState.world.childrenRescued.filter(r => r).length;
+    this.achievementSystem.checkProgress('rescuer', childrenRescued);
+
+    if (childrenRescued === 1) {
+      this.achievementSystem.unlock('first_rescue');
+    }
+
+    if (this.gameState.statistics.creaturesKilled === 1) {
+      this.achievementSystem.unlock('first_blood');
+    }
   }
 
   private handlePlayerInput(): void {
@@ -192,6 +247,14 @@ export class GameEngine {
         this.inventorySystem.addItem(itemType);
         this.gameState.statistics.resourcesGathered++;
         this.particleSystem.createParticles(resource.position, 10, '#FFD700', 0.5);
+        this.floatingTextManager.addText(
+          `+1 ${itemType}`,
+          resource.position.x,
+          resource.position.y,
+          '#FFD700',
+          16
+        );
+        this.tutorialSystem.triggerHint('collect_resources');
       }
     }
 
@@ -207,6 +270,14 @@ export class GameEngine {
           const childIndex = parseInt(child.id.split('_')[1]);
           this.world.rescueChild(childIndex);
           this.gameState.world.childrenRescued[childIndex] = true;
+          this.floatingTextManager.addText(
+            'CHILD RESCUED!',
+            child.position.x,
+            child.position.y,
+            '#00FF00',
+            32
+          );
+          this.tutorialSystem.triggerHint('children');
         }
       }
     }
@@ -219,6 +290,15 @@ export class GameEngine {
         this.entities.set(campfire.id, campfire);
         this.world.placeCampfire(this.player.position);
         this.gameState.world.campfirePosition = { ...this.player.position };
+        this.achievementSystem.unlock('light_keeper');
+        this.tutorialSystem.triggerHint('campfire');
+        this.floatingTextManager.addText(
+          'SAFE ZONE CREATED!',
+          this.player.position.x,
+          this.player.position.y - 40,
+          '#FF6600',
+          28
+        );
       }
     }
   }
@@ -244,9 +324,28 @@ export class GameEngine {
           entity.takeDamage(weapon.damage);
           this.gameState.statistics.damageDealt += weapon.damage;
 
+          // Add floating damage number
+          this.floatingTextManager.addText(
+            `-${weapon.damage}`,
+            entity.position.x,
+            entity.position.y,
+            '#FF6666',
+            24
+          );
+
+          // Add hit particles
+          this.particleSystem.createParticles(entity.position, 10, '#FF0000', 0.5);
+
           if (entity.health <= 0) {
             this.gameState.statistics.creaturesKilled++;
             this.particleSystem.createParticles(entity.position, 20, '#FF0000', 1);
+            this.floatingTextManager.addText(
+              'KILL!',
+              entity.position.x,
+              entity.position.y - 20,
+              '#FFD700',
+              28
+            );
           }
         }
       }
@@ -328,12 +427,28 @@ export class GameEngine {
           // Check if player is in safe zone
           const isInSafeZone = this.lightingSystem.isInLight(this.player.position);
 
-          if (!isInSafeZone) {
+          // Player can't be damaged while dashing
+          if (!isInSafeZone && !this.player.isDashingNow()) {
             const creature = entity as any;
             if (creature.getAttackDamage) {
               const damage = creature.getAttackDamage();
               this.player.takeDamage(damage);
               this.gameState.statistics.damageTaken += damage;
+
+              // Screen shake on damage
+              this.screenEffects.triggerShake(10, 0.3);
+
+              // Show damage number on player
+              this.floatingTextManager.addText(
+                `-${damage}`,
+                this.player.position.x,
+                this.player.position.y - 30,
+                '#FF0000',
+                28
+              );
+
+              // Blood particles
+              this.particleSystem.createParticles(this.player.position, 15, '#AA0000', 0.6);
             }
           }
 
@@ -371,6 +486,11 @@ export class GameEngine {
       this.renderer = new Renderer(ctx, this.camera);
     }
 
+    // Apply screen shake
+    const shake = this.screenEffects.getShakeOffset();
+    ctx.save();
+    ctx.translate(shake.x, shake.y);
+
     const entityList = [this.player, ...Array.from(this.entities.values())];
     const resources = this.resourceManager.getAllResources();
 
@@ -383,6 +503,9 @@ export class GameEngine {
     );
 
     this.particleSystem.render(ctx, this.camera);
+    this.floatingTextManager.render(ctx, this.camera);
+
+    ctx.restore();
   }
 
   public getState(): GameState {
@@ -417,7 +540,24 @@ export class GameEngine {
     const success = this.craftingSystem.craft(recipeId, this.inventorySystem);
     if (success) {
       this.gameState.statistics.itemsCrafted++;
+      this.tutorialSystem.triggerHint('crafting');
     }
     return success;
+  }
+
+  public getPlayer(): Player {
+    return this.player;
+  }
+
+  public getTutorialHint(): string | null {
+    return this.tutorialSystem.getCurrentHint();
+  }
+
+  public getAchievementSystem(): AchievementSystem {
+    return this.achievementSystem;
+  }
+
+  public dismissTutorialHint(): void {
+    this.tutorialSystem.dismissCurrentHint();
   }
 }
